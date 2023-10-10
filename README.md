@@ -1,24 +1,24 @@
 # Concurrent Rust
 
-Writing programs in Rust that do more than one thing at a time is definetly possible, and Rust will help us ensure that the code we use to do so is free of memory errors. However, not all aspects of writing such programs is thoroughly rooted in the language and standard library, yet. So we may have to resort to unstable features and external crates. But that's not a big problem. In this article, we take a look at two such crates that serve different purposes.
+Rust makes writing programs that do more than one thing at a time quite easy, but ensuring that the code we use to do so is free of memory errors. However, not all aspects of writing such programs is thoroughly rooted in the language and standard library, yet. So we may have to resort to unstable features and external crates. But that's not a big problem. In this article, we take a look at two such crates, which are used for different purposes.
 
 ## What is concurrency?
 
-Let's define concurrent work as work that is done in no predefined order. This is a safe definition to use in this article. In particular, it is important to differentiate "concurrency" and "parallelism". Parallel work is work that is done at the same time as other work.
+_The definitions that follow are debatable. They are given here mainly as a reference for concepts explored in this article._
+
+Let's define concurrent work as work that is done in no predefined order. It is important to differentiate "concurrency" and "parallelism". Parallelism is more specific, meaning work that is done at the same time as other work.
 
 Why is this important?
 
-Because, technically, we have no way of ensuring that our code really does run in parallel. All we can do is write it so that in _can_ run concurrently and is safe to run in parallel. The way we schedule the concurrent work (for example using an async runtime) decides whether our program can potentially be run in parallel. If this is the case, the runtime's configuration, the operating system and hardware the program runs on determines if any of it will _actually_ run in parallel.
+Because, technically, we have no way of ensuring that our code really does run in parallel. All we can do is write it so that it _can_ run concurrently and is (memory) safe to run in parallel. The way we schedule the concurrent work (for example using an async runtime) decides whether our program can potentially be run in parallel. If this is the case, the runtime's configuration, the operating system and the hardware the program runs on determines if any of it will _actually_ run in parallel.
 
-That being said, runtimes like tokio exist to parallelize our code as efficiently as possible, and how to do this right is explained in this article.
+That being said, runtimes like tokio exist to parallelize our code as efficiently as possible, and the basics of how to do this right are the topic of this article.
 
 ## What are types of concurrency?
 
-We could probably make a distinction between asynchronous workload and parallel workload, and unify both concepts as concurrent workload.
+An example for **asynchronous** work is eating and drinking. Sometimes you gotta eat, and sometimes you gotta drink. The order does not matter. You eat when you're hungry and you drink when you're thirsty. Generally, you don't do both at the same time.
 
-An example for asynchronous work is eating and drinking. Sometimes you gotta eat, and sometimes you gotta drink. The order does not matter. You eat when you're hungry and you drink when you're thirsty. Generally, you don't do both at the same time.
-
-What then, is parallel workload?
+What then, is **parallel** workload?
 
 There are things that are fundamentally sequential, like counting up a counter. There is no way to raise the counter from 5 to 6 before it has been raised from 4 to 5. On the other hand, there are things that can easily be done in parallel, like summing up multiple numbers: 3 + 4 + 5 + 6 is the same as (3 + 4) + (5 + 6). The order in which these additions are done has no effect on the result. So we could do 3 + 4 at the same time as 5 + 6, and then finish up with 7 + 11.
 
@@ -58,7 +58,7 @@ Let's map our construction site metaphor to the computing domain:
 
 - "tool" = "CPU core"
 - "worker" = "(kernel level) thread" (a line of consecutive instructions as viewed by the OS)
-- "(interruptable) task" = "(green) thread" (a line of consecutive instructions as viewed by our program)
+- "(interruptible) task" = "(green) thread" (a line of consecutive instructions as viewed by our program)
 
 #### Heavy work tasks
 
@@ -104,17 +104,17 @@ On a computer, a thread is a line of execution of commands. A program can be mad
 
 If the amount of resources that the workers can use to perform their work is limited, somebody has to decide which worker gets to use those resources when.
 
-When that somebody is the operating system, we call the thread an OS thread or a kernel level thread. The operating is pretty efficient in scheduling threads to run, but we may be able to do even better from within our own program, since we have more knowlegde of what's going on and can avoid some of the work that is associated with switching between OS threads.
+When that somebody is the operating system, we call the thread an OS thread or a kernel level thread. The operating system is pretty efficient in scheduling threads to run, but we may be able to do even better from within our own program, since we have more knowlegde of what's going on and can avoid some of the work that is associated with switching between OS threads.
 
-They way we are able to perform this scheduling ourserves is by splitting the entirety of instructions that make up our program into distinct green threads or user level threads that are able to run independently of each other. Instead of creating one kernel level thread per green thread, we only create a limited amount (possibly even just one), and then run those green threads consecutively on those. An added bonus is when our green threads are interruptible at strategic breakpoints (whenever something is happening that is not CPU bound), because then we can just do something else while waiting for the harddrive or the network.
+They way we are able to perform this scheduling ourselves is by splitting the entirety of instructions that make up our program into distinct green threads or user level threads that are able to run independently of each other. Instead of creating one kernel level thread per green thread, we only create a limited amount (possibly even just one), and then run those green threads consecutively on those. An added bonus is when our green threads are interruptible at strategic breakpoints (whenever something is happening that is not CPU bound), because then we can just do something else while waiting for the harddrive or the network.
 
 ### Kernel level threads
 
-As described, kernel level threads are an operating system thing. There are many processes running on a typical computer, and each of consists of one or more threads. We only have a limited number of tools / CPU cores, so the operating system is busy all the time deciding who gets those tools when. This is no simple task.
+As described, kernel level threads are an operating system thing. There are many processes running on a typical computer, and each of them consists of one or more threads. We only have a limited number of tools / CPU cores, so the operating system is busy all the time deciding who gets those tools when. This is no simple task.
 
 ### Green threads
 
-Using kernel level threads is the only way to achieve parallelism. But sometimes we just need our program to flexibly jump between different things that need to be done, without doing multiple things at a time. We _could_ do this with kernel level threads. But it might be wasteful of resources, because we may be able to schedule work more efficiently than the OS could. After all, we know better what's happening in our program.
+Using kernel level threads is the only way to achieve parallelism. But sometimes we just need our program to flexibly jump between different things that need to be done, without doing multiple things at a time. We _could_ do this with kernel level threads. But it might be wasteful of resources, because we may be able to schedule work more efficiently than the OS could.
 
 A green thread is a line of commands that exists within our program. Like, when a HTTP request comes in: "Read the body and make a database query. Then read the DB response, make a computation based on it, and write the result back to the network socket". Querying the database will likely take a signifacant amount of time. That's why we'd better make this thread interruptible
 
@@ -360,13 +360,13 @@ fn main() {
 
 ### Using rayon
 
-Rayon is a threadpool designed to efficiently parallelize compute heavy tasks.
+Rayon has a threadpool designed to efficiently parallelize compute heavy tasks.
 
 #### Manually spawning tasks
 
-Rayon allows us to spawn tasks in a similar fashion to kernel level threads and tokio green threads. However, it return neither a join handle, nor a future. We lose all control over spawned threads. Or rather, if we need control, we have to add it ourselves.
+Rayon allows us to spawn tasks in a similar fashion to kernel level threads and tokio green threads. However, it returns neither a join handle, nor a future. We lose all control over spawned threads. Or rather, if we need control, we have to add it ourselves.
 
-The following approach uses a oneshot channel provided by tokio, which is channel that will only deliver a value once, to return the task's result _and_ signal that it has run to completion.
+The following approach uses a oneshot channel provided by tokio, which is a channel that will only deliver a value once, to return the task's result _and_ in this case signal that it has run to completion.
 
 ```rust
 use rayon::prelude::*;
@@ -441,11 +441,11 @@ fn parallel_iterators(number_of_threads: usize) {
 
 ## Sharing state and getting results
 
-We have seen that futures and join handles allow us to get the result that a given task produced. We have also seen that this does not work with rayon.
+We have seen that futures and join handles allow us to get the result that a given task produces. We have also seen that this does not work with rayon.
 
-Getting a single result may not always be enough. Maybe we need to get data from a thread multiple times while it is running. Or maybe our threads need to read or/and write shared state. There are two main recipes than can be fairly universally applied.
+Getting a single result may not always be enough. Maybe we need to get data from a thread multiple times while it is running. Or maybe our threads need to read and/or write shared state. There are two main recipes than can be fairly universally applied.
 
-But why is this even a problem? Basically, because it is very easy to create bugs when multiple threads try to work with the same values at the same time. As long as everybody is just reading, there is no problem. But as soon as reads overlap with writes, or multiple writes happen at the same time, weird things are bound to happen. We must make sure this can't happen to avoid very hard to find and reproduce bugs.
+But why is this even a problem? Basically, because it is very easy to create bugs when multiple threads try to work with the same values at the same time. As long as everybody is just reading, there is no problem. But as soon as reads overlap with writes, or multiple writes happen at the same time, weird things are bound to happen. We must make sure this can't occur to avoid very hard to find and reproduce bugs.
 
 ### Mutexes
 
@@ -570,7 +570,7 @@ async fn tokio_async_channels(number_of_threads: usize) {
         let sender = sender.clone();
         tokio::task::spawn(cb(num, num, sender));
     });
-    // need to drop the sender, because the iteratoionbelow will only complete once all senders are dropped
+    // need to drop the sender, because the iteration below will only complete once all senders are dropped
     drop(sender);
 
     while let Some((index, res)) = receiver.recv().await {
