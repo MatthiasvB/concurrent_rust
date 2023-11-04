@@ -1,6 +1,6 @@
 # Tutorial on Concurrent Rust: Harnessing the Power of Async and Parallelism
 
-![Ferris in a factory weaving yarn]('./ferris_factory.png')
+![Ferris in a factory weaving yarn](./ferris_factory.png)
 
 Rust makes writing programs that do more than one thing at a time quite easy, while ensuring that the code we use to do so is free of memory errors. However, writing concurrent programs in Rust may require using unstable features and external crates. In this article, we'll explore two such crates for different purposes, giving you the tools you need to make your Rust code concurrent.
 
