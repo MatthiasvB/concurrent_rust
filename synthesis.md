@@ -1,5 +1,7 @@
 # Tutorial on Concurrent Rust: Harnessing the Power of Async and Parallelism
 
+![Ferris in a factory weaving yarn]('./ferris_factory.png')
+
 Rust makes writing programs that do more than one thing at a time quite easy, while ensuring that the code we use to do so is free of memory errors. However, writing concurrent programs in Rust may require using unstable features and external crates. In this article, we'll explore two such crates for different purposes, giving you the tools you need to make your Rust code concurrent.
 
 ## Understanding Concurrency
@@ -9,7 +11,7 @@ _The definitions that follow are debatable. They are given here mainly as a refe
 To grasp concurrent programming in Rust, we first need to distinguish between **concurrency**, **asynchronicity** and **parallelism**:
 
 - **Concurrency** involves executing tasks without a predefined order. To do so, one may want to ensure that the code can potentially run in parallel and is memory-safe for such execution.
-- **Asynchronous (Async) Work:** Think of asynchronous work as tasks that can be done without a predetermined sequence, similar to eating and drinking. You eat when you're hungry and drink when you're thirsty, and their order doesn't matter. Async work is ideal for I/O-bound operations and tasks with frequent waiting.
+- **Asynchronous (Async) Work:** Think of asynchronous work as tasks that can be done without a predetermined sequence, similar to eating and drinking. You eat when you're hungry and drink when you're thirsty, and the order doesn't matter. Async work is ideal for I/O-bound operations and tasks with frequent waiting.
 - **Parallel Workload:** This involves tasks that can be done in parallel, such as summing up multiple numbers. The order of execution doesn't affect the result, making it suitable for parallel operations. However, whether parallel execution actually occurs depends on the software configuration, the operating system and the availability of multiple CPU cores.
 
 In essence, while we can design code to be concurrent, actual parallel execution depends on factors like the runtime, operating system, and hardware. Async workload is concurrent without necessarily running in parallel.
@@ -388,7 +390,7 @@ There's a problem, though. Mutexes introduce the possibility to dead-lock your c
 - ThreadA has Mutex1 locked but also needs Mutex2
 - ThreadB has Mutex2 locked but also needs Mutex1
 
-ThreadA will keep Mutex1 locked and will block until it has gotten Mutex2 as well. ThreadB will do the same with Mutex2. None of them will ever release the lock on their Mutex, and neither will get chance to lock the other Mutex. That's a dead-lock. Your program is now frozen.
+ThreadA will keep Mutex1 locked and will block until it has gotten Mutex2 as well. ThreadB will do the same with Mutex2. None of them will ever release the lock on their Mutex, and neither will get a chance to lock the other Mutex. That's a dead-lock. Your program is now frozen.
 
 There is no safe method to ensure that this will never happen in your code as it evolves other than ensuring that any thread will always only lock a single Mutex at a time.
 
@@ -477,4 +479,8 @@ async fn tokio_async_channels(number_of_threads: usize) {
 
 ## Learning more
 
-You can explore this repositories `src` directory for more snippets on different variations of runtimes and state-sharing mechanisms. Of course, it'd also be a good idea to look at the docs for tokio and rayon. A lot information I listed here was inspired by [this great blog post](https://ryhl.io/blog/async-what-is-blocking/).
+You can explore [this repositorie's](https://github.com/MatthiasvB/concurrent_rust) `src` directory for more (runnable) snippets on different variations of runtimes and state-sharing mechanisms. Of course, it'd also be a good idea to look at the docs for tokio and rayon. A lot information I listed here was inspired by [this great blog post](https://ryhl.io/blog/async-what-is-blocking/).
+
+## It's not perfect
+
+This article is meant to give you a starting point for concurrency in Rust. While concurrent Rust code is guaranteed not to have memory errors, there is no guarantee that you'll be able to model your problem in Rust. I'm only starting out on the topic myself, but I've heard from people who have tried to do harder things than I have that the language is "just not ready, yet", especially when it comes to concurrency. The team is working hard to resolve these issues, but for now, a few important building blocks simply do not exist, are unstable, or very complicated to use. Beware of that.
